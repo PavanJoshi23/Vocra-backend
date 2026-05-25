@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# Local data
+storage/*.db
+storage/resumes/*
+!storage/resumes/.gitkeep
+storage/exports/*
+!storage/exports/.gitkeep
+storage/backups/*
+!storage/backups/.gitkeep
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+*.swp
