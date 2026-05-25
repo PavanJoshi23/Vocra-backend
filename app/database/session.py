@@ -34,5 +34,6 @@ def init_db() -> None:
     from app.models import extracted_skill  # noqa: F401
     from app.models import match_result  # noqa: F401
     from app.models import ai_cache  # noqa: F401
+    from app.models import interview_prep  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
