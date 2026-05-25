@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.analysis import router as analysis_router
 from app.api.applications import router as applications_router
+from app.api.dashboard import router as dashboard_router
 from app.api.interview import router as interview_router
 from app.api.resumes import router as resumes_router
 from app.database import init_db
@@ -38,6 +39,7 @@ app.include_router(applications_router, prefix="/api")
 app.include_router(resumes_router, prefix="/api")
 app.include_router(analysis_router, prefix="/api")
 app.include_router(interview_router, prefix="/api")
+app.include_router(dashboard_router, prefix="/api")
 
 
 @app.get("/api/health")
