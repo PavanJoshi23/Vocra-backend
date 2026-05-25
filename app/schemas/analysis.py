@@ -40,3 +40,15 @@ class MatchResponse(BaseModel):
     missing_keywords: list[str]
     score_breakdown: ScoreBreakdownSchema
     created_at: datetime
+
+
+class ImproveResumeRequest(BaseModel):
+    resume_id: int
+    application_id: int
+    bullet_text: str
+
+
+class ImproveResumeResponse(BaseModel):
+    original: str
+    suggestion: str
+    changes: list[str]
