@@ -1,4 +1,10 @@
+import csv
+import io
+import json
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -12,6 +18,13 @@ from app.schemas.application import (
 from app.services import applications as application_service
 
 router = APIRouter(prefix="/applications", tags=["applications"])
+
+
+_EXPORT_FIELDS = [
+    "id", "company_name", "job_title", "status", "application_date",
+    "follow_up_date", "job_link", "salary_min", "salary_max",
+    "notes", "job_description", "resume_id", "created_at", "updated_at",
+]
 
 
 @router.get("", response_model=ApplicationListResponse)
@@ -38,6 +51,47 @@ def create_application(
 ) -> ApplicationResponse:
     application = application_service.create_application(db, payload)
     return ApplicationResponse.model_validate(application)
+
+
+# /export must be declared BEFORE /{application_id} so FastAPI doesn't try to
+# parse "export" as an integer path parameter.
+@router.get("/export")
+def export_applications(
+    format: Literal["json", "csv"] = Query(..., description="Export format: json or csv"),
+    db: Session = Depends(get_db),
+) -> Response:
+    items, _ = application_service.list_applications(db, limit=10_000)
+
+    if format == "json":
+        rows = []
+        for item in items:
+            row = {}
+            for field in _EXPORT_FIELDS:
+                val = getattr(item, field, None)
+                row[field] = str(val) if val is not None else None
+            rows.append(row)
+        content = json.dumps(rows, indent=2, ensure_ascii=False)
+        return Response(
+            content=content,
+            media_type="application/json",
+            headers={"Content-Disposition": "attachment; filename=applications.json"},
+        )
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=_EXPORT_FIELDS, extrasaction="ignore")
+    writer.writeheader()
+    for item in items:
+        row = {}
+        for field in _EXPORT_FIELDS:
+            val = getattr(item, field, None)
+            row[field] = str(val) if val is not None else ""
+        writer.writerow(row)
+
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=applications.csv"},
+    )
 
 
 @router.get("/{application_id}", response_model=ApplicationResponse)
