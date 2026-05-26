@@ -9,11 +9,14 @@ from app.api.dashboard import router as dashboard_router
 from app.api.interview import router as interview_router
 from app.api.resumes import router as resumes_router
 from app.database import init_db
+from app.database.session import engine
+from app.services.fts import setup_fts
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_db()
+    setup_fts(engine)
     yield
 
 

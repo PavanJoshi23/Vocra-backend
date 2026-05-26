@@ -1,8 +1,20 @@
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, text
 from sqlalchemy.orm import Session
 
 from app.models.application import Application, ApplicationStatus
 from app.schemas.application import ApplicationCreate, ApplicationUpdate
+
+
+def _fts_ids(db: Session, search: str) -> list[int]:
+    """Return application IDs that match the FTS5 query, or [] if FTS unavailable."""
+    try:
+        rows = db.execute(
+            text("SELECT rowid FROM applications_fts WHERE applications_fts MATCH :q"),
+            {"q": search},
+        ).fetchall()
+        return [r[0] for r in rows]
+    except Exception:
+        return None  # signal caller to fall back to ILIKE
 
 
 def list_applications(
@@ -19,31 +31,43 @@ def list_applications(
         stmt = stmt.where(Application.status == status)
 
     if search:
-        pattern = f"%{search.strip()}%"
-        stmt = stmt.where(
-            or_(
+        fts_ids = _fts_ids(db, search.strip())
+        if fts_ids is None:
+            # FTS not available — fall back to ILIKE
+            pattern = f"%{search.strip()}%"
+            fts_filter = or_(
                 Application.company_name.ilike(pattern),
                 Application.job_title.ilike(pattern),
                 Application.notes.ilike(pattern),
                 Application.job_description.ilike(pattern),
             )
-        )
+            stmt = stmt.where(fts_filter)
+        elif fts_ids:
+            stmt = stmt.where(Application.id.in_(fts_ids))
+        else:
+            return [], 0
 
-    count_stmt = select(Application.id).where(Application.is_deleted.is_(False))
+    total_stmt = select(Application.id).where(Application.is_deleted.is_(False))
     if status is not None:
-        count_stmt = count_stmt.where(Application.status == status)
+        total_stmt = total_stmt.where(Application.status == status)
     if search:
-        pattern = f"%{search.strip()}%"
-        count_stmt = count_stmt.where(
-            or_(
-                Application.company_name.ilike(pattern),
-                Application.job_title.ilike(pattern),
-                Application.notes.ilike(pattern),
-                Application.job_description.ilike(pattern),
+        fts_ids = _fts_ids(db, search.strip())
+        if fts_ids is None:
+            pattern = f"%{search.strip()}%"
+            total_stmt = total_stmt.where(
+                or_(
+                    Application.company_name.ilike(pattern),
+                    Application.job_title.ilike(pattern),
+                    Application.notes.ilike(pattern),
+                    Application.job_description.ilike(pattern),
+                )
             )
-        )
+        elif fts_ids:
+            total_stmt = total_stmt.where(Application.id.in_(fts_ids))
+        else:
+            return [], 0
 
-    total = len(db.scalars(count_stmt).all())
+    total = len(db.scalars(total_stmt).all())
     items = list(
         db.scalars(
             stmt.order_by(Application.updated_at.desc()).offset(skip).limit(limit)
