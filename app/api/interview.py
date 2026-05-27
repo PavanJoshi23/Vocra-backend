@@ -12,6 +12,16 @@ from app.services.interview_prep import generate_prep
 router = APIRouter(prefix="/interview", tags=["interview"])
 
 
+def _build_response(record: InterviewPrep) -> InterviewPrepResponse:
+    return InterviewPrepResponse(
+        id=record.id,
+        application_id=record.application_id,
+        topics=json.loads(record.technical_topics or "[]"),
+        from_cache=record.from_cache,
+        created_at=record.created_at,
+    )
+
+
 @router.get("/{application_id}/prep", response_model=InterviewPrepResponse)
 def get_interview_prep(application_id: int, db: Session = Depends(get_db)) -> InterviewPrepResponse:
     record = (
@@ -22,16 +32,7 @@ def get_interview_prep(application_id: int, db: Session = Depends(get_db)) -> In
     )
     if record is None:
         raise HTTPException(status_code=404, detail="No interview prep found for this application")
-    return InterviewPrepResponse(
-        id=record.id,
-        application_id=record.application_id,
-        technical_topics=json.loads(record.technical_topics or "[]"),
-        behavioral_questions=json.loads(record.behavioral_questions or "[]"),
-        coding_topics=json.loads(record.coding_topics or "[]"),
-        study_roadmap=json.loads(record.study_roadmap or "[]"),
-        from_cache=record.from_cache,
-        created_at=record.created_at,
-    )
+    return _build_response(record)
 
 
 @router.post("/generate", response_model=InterviewPrepResponse)
@@ -47,18 +48,6 @@ async def generate_interview_prep(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except (OllamaUnavailableError, OllamaTimeoutError) as exc:
-        raise HTTPException(
-            status_code=503,
-            detail=f"AI service unavailable: {exc}",
-        )
+        raise HTTPException(status_code=503, detail=f"AI service unavailable: {exc}")
 
-    return InterviewPrepResponse(
-        id=record.id,
-        application_id=record.application_id,
-        technical_topics=json.loads(record.technical_topics or "[]"),
-        behavioral_questions=json.loads(record.behavioral_questions or "[]"),
-        coding_topics=json.loads(record.coding_topics or "[]"),
-        study_roadmap=json.loads(record.study_roadmap or "[]"),
-        from_cache=record.from_cache,
-        created_at=record.created_at,
-    )
+    return _build_response(record)

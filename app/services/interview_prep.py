@@ -1,13 +1,3 @@
-"""Interview prep generation service.
-
-Pipeline:
-1. Load application + resume
-2. Extract JD skills, identify resume strengths via matcher
-3. Build short prompt
-4. Check cache — return if hit
-5. Call Ollama, parse response, store in DB + cache
-"""
-
 import json
 
 from sqlalchemy.orm import Session
@@ -21,7 +11,7 @@ from app.models.resume import Resume
 from app.services.matcher import match
 from app.services.skill_extractor import extract_skills
 
-_MODEL = "qwen2.5:7b"
+_MODEL = "qwen2.5:1.5b"
 
 
 async def generate_prep(db: Session, application_id: int) -> InterviewPrep:
@@ -58,31 +48,30 @@ async def generate_prep(db: Session, application_id: int) -> InterviewPrep:
 
     cached_response = get_cached(db, prompt_hash)
     if cached_response:
-        parsed = parse_response(cached_response)
-        return _upsert_record(db, application_id, parsed, prompt_hash, from_cache=True)
+        topics = parse_response(cached_response)
+        return _upsert_record(db, application_id, topics, prompt_hash, from_cache=True)
 
     raw = await generate(_MODEL, prompt)
-    parsed = parse_response(raw)
+    topics = parse_response(raw)
 
-    cache_key = f"interview_{application_id}"
-    store_cached(db, prompt_hash=prompt_hash, cache_key=cache_key, response=raw)
+    store_cached(db, prompt_hash=prompt_hash, cache_key=f"interview_{application_id}", response=raw)
 
-    return _upsert_record(db, application_id, parsed, prompt_hash, from_cache=False)
+    return _upsert_record(db, application_id, topics, prompt_hash, from_cache=False)
 
 
 def _upsert_record(
     db: Session,
     application_id: int,
-    parsed: dict,
+    topics: list[str],
     prompt_hash: str,
     from_cache: bool,
 ) -> InterviewPrep:
     existing = db.query(InterviewPrep).filter_by(application_id=application_id).first()
     if existing:
-        existing.technical_topics = json.dumps(parsed["technical_topics"])
-        existing.behavioral_questions = json.dumps(parsed["behavioral_questions"])
-        existing.coding_topics = json.dumps(parsed["coding_topics"])
-        existing.study_roadmap = json.dumps(parsed["study_roadmap"])
+        existing.technical_topics = json.dumps(topics)
+        existing.behavioral_questions = "[]"
+        existing.coding_topics = "[]"
+        existing.study_roadmap = "[]"
         existing.prompt_hash = prompt_hash
         existing.from_cache = from_cache
         db.flush()
@@ -90,10 +79,10 @@ def _upsert_record(
 
     record = InterviewPrep(
         application_id=application_id,
-        technical_topics=json.dumps(parsed["technical_topics"]),
-        behavioral_questions=json.dumps(parsed["behavioral_questions"]),
-        coding_topics=json.dumps(parsed["coding_topics"]),
-        study_roadmap=json.dumps(parsed["study_roadmap"]),
+        technical_topics=json.dumps(topics),
+        behavioral_questions="[]",
+        coding_topics="[]",
+        study_roadmap="[]",
         prompt_hash=prompt_hash,
         from_cache=from_cache,
     )

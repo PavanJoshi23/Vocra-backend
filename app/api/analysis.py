@@ -94,7 +94,7 @@ async def improve_resume(
         return ImproveResumeResponse(**parsed)
 
     try:
-        raw = await ollama_generate("qwen2.5:7b", prompt)
+        raw = await ollama_generate("qwen2.5:1.5b", prompt)
     except (OllamaUnavailableError, OllamaTimeoutError) as exc:
         raise HTTPException(status_code=503, detail=f"AI service unavailable: {exc}")
 
