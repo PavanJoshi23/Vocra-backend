@@ -21,7 +21,7 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(
-    title="PathForge API",
+    title="Vocra API",
     description="Local-first career assistant API",
     version="0.1.0",
     lifespan=lifespan,

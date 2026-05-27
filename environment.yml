@@ -1,4 +1,4 @@
-name: pathforge
+name: vocra
 channels:
   - conda-forge
   - defaults

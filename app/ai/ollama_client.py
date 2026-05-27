@@ -5,7 +5,7 @@ TIMEOUT_SECONDS = 120.0
 
 
 class OllamaUnavailableError(Exception):
-    """Raised when Ollama is not reachable (connection refused or similar)."""
+    """Raised when Ollama is not reachable or the requested model is missing."""
 
 
 class OllamaTimeoutError(Exception):
@@ -21,6 +21,11 @@ async def generate(model: str, prompt: str) -> str:
                 f"{OLLAMA_BASE_URL}/api/generate",
                 json=payload,
             )
+            if response.status_code == 404:
+                raise OllamaUnavailableError(
+                    f"Model '{model}' not found in Ollama. "
+                    f"Run: ollama pull {model}"
+                )
             response.raise_for_status()
             return response.json()["response"]
     except httpx.ConnectError as exc:

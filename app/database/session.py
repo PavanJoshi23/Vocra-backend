@@ -6,7 +6,7 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "storage"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
-DATABASE_URL = f"sqlite:///{DATA_DIR / 'pathforge.db'}"
+DATABASE_URL = f"sqlite:///{DATA_DIR / 'vocra.db'}"
 
 
 class Base(DeclarativeBase):
